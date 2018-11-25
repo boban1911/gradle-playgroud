@@ -1,3 +1,77 @@
+import org.ajoberstar.grgit.Grgit;
+
+
+buildscript {
+	repositories {
+		jcenter()
+	}
+
+	dependencies {
+        classpath 'org.ajoberstar:grgit:2.3.0'
+    }
+}
+
 task wrapper(type: Wrapper) {
     gradleVersion = '4.10.2'
+}
+
+task testGrgit() {
+	println("Cao")
+	Grgit grgit = Grgit.open();
+	println(grgit.getBranch().current().getName())
+	println("Bella")
+}
+
+task action {
+
+	def branch = "git rev-parse --abbrev-ref HEAD".execute().text.trim()
+	logger.lifecycle("#### diCreator ------------------- ")
+	if (branch.contains("feature")) {
+		branch = branch.replace("feature/", "")
+		logger.lifecycle("checking DI-File for ${branch}")
+		def files = [];
+		files.add(createDIFile(branch, "txt"))
+		files.add(createDIFile(branch, "json"))
+		commitDIFile(files, branch)
+
+	} else {
+		logger.lifecycle("\t nothing todo as you are not in a feature branch");
+	}
+}
+
+def commitDIFile(files, branch) {
+	def filestring = "";
+	files.each {
+		filestring += it + " "
+	}
+	filestring = filestring.trim()
+	if (filestring != "") {
+		def gitcommit = "git commit -m \"$branch: added di-file\" -- $filestring".execute().text.trim()
+		logger.lifecycle("\t\t + commit to git $filestring")
+		logger.lifecycle("$gitcommit")
+	}
+}
+
+def createDIFile(branch, ending) {
+	def folder = "di/"
+	def releasedVersion = "${version}".replaceAll(~/-(.*)/, "");
+
+	logger.lifecycle("\t\t - $releasedVersion Version")
+	if (new File(folder + releasedVersion).exists()) {
+		folder += "$releasedVersion/"
+	}
+
+	def filename = "${folder}${branch}.${ending}"
+
+	File f = new File(filename)
+	f.parentFile.mkdirs()
+	if (!f.exists()) {
+		logger.lifecycle("\t\t + $filename will be created")
+		f.createNewFile();
+		def gitadd = "git add di/${branch}.${ending}".execute().text.trim()
+		logger.lifecycle("\t\t\t + added to git $gitadd")
+		filename
+	} else {
+		logger.lifecycle("\t\t - $filename already exists")
+	}
 }
